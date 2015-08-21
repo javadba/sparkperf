@@ -1,0 +1,16 @@
+core.nRecords.thousands:
+  - 10
+  - 100
+  - 1000
+  - 10000
+  - 100000
+#core.nRecords.thousands: 100000
+core.nPartitions:
+  - 20
+core.skewFactors:
+  - 1
+core.minVal: 0
+core.maxVal: 20000
+core.useIgnite:
+  - true
+  - false
