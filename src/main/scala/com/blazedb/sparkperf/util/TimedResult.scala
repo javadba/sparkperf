@@ -29,12 +29,12 @@ class TimedResult extends Serializable {
     trace(name, s"Starting $name ")
     val start = System.currentTimeMillis
     val result = block
-    val millis = (System.currentTimeMillis.toDouble/(1000*1000)).toInt
+    val secs = ((System.currentTimeMillis-start)/1000.0)
     val cmsg = result match {
       case t: TestResult => t.optCount.getOrElse(0)
       case _ => 0
     }
-    trace(name, s"Completed $name - duration=$millis millis count=$cmsg", true)
+    trace(name, s"Completed $name - duration=$secs seconds count=$cmsg", true)
     result
   }
 
