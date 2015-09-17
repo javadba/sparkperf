@@ -37,39 +37,13 @@ import YsSparkTypes.{RddKey, RddVal}
  */
 class CoreRDDPerfTest(args: Array[String]) extends AbstractRDDPerfTest[RddKey, RddVal](args) {
 
-  var coreTestsFile: String = "config/coreTests.yml"
-
-  @throws(classOf[Exception])
-  def setUp(): Unit = {
+  def test(): Boolean = {
+    depthTests()
   }
 
-
-  def readTestConfig(ymlFile: String) = {
-    val yml = new YamlConfiguration(ymlFile)
-
-    def toIntList(cval: Option[_], default: Seq[Int]): Seq[Int] = {
-      import collection.JavaConverters._
-      if (cval.isEmpty) {
-        default
-      } else cval.get match {
-
-        case ints: java.util.ArrayList[_] => ints.asScala.toSeq.asInstanceOf[Seq[Int]]
-        case _ => throw new IllegalArgumentException(s"Unexpected type in toIntList ${cval.get.getClass.getName}")
-      }
-    }
-    def toBoolList(cval: Option[_], default: Seq[Boolean]): Seq[Boolean] = {
-      import collection.JavaConverters._
-      if (cval.isEmpty) {
-        default
-      } else cval.get match {
-
-        case bools: java.util.ArrayList[_] => bools.asScala.toSeq.asInstanceOf[Seq[Boolean]]
-        case _ => throw new IllegalArgumentException(s"Unexpected type in toIntList ${cval.get.getClass.getName}")
-      }
-    }
-    def toLong(cval: Option[Long], default: Long) = cval.getOrElse(default)
-
-    val A = Array
+  val coreTestsFile: String = "config/coreTests.yml"
+  override def readTestConfig(ymlFile: String) = {
+    val yml = readConfig(ymlFile)
     val conf = CoreTestConfig(
       toIntList(yml("core.nRecords.thousands"), Seq(1000)).map(_ * 1000),
       toIntList(yml("core.nPartitions"), Seq(20)),
@@ -80,9 +54,6 @@ class CoreRDDPerfTest(args: Array[String]) extends AbstractRDDPerfTest[RddKey, R
     )
     println(s"CoreTest config is ${conf.toString}")
     conf
-  }
-  def test(): Boolean = {
-    depthTests()
   }
 
   def depthTests(): Boolean = {

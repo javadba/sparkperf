@@ -14,24 +14,27 @@
 
 package com.blazedb.sparkperf
 
+import com.blazedb.sparkperf.util.YamlConfiguration
 import org.apache.spark._
 import org.apache.spark.sql.SQLContext
 
 import scala.reflect.runtime.universe._
 
-abstract class AbstractRDDPerfTest[RddK,RddV](cmdlineArgs: Array[String])
-(implicit rddK : TypeTag[RddK], rddV: TypeTag[RddV]) extends java.io.Serializable {
+abstract class AbstractRDDPerfTest[RddK, RddV](cmdlineArgs: Array[String])
+                                              (implicit rddK: TypeTag[RddK], rddV: TypeTag[RddV]) extends java.io.Serializable {
 
-var sc: SparkContext = _
-var sqlContext: SQLContext = _
+  var sc: SparkContext = _
+  var sqlContext: SQLContext = _
+
+  def readTestConfig(fname: String): Product
 
   @throws(classOf[Exception])
   def setUp(args: Array[String]) {
-    val testName = "SparkBenchmark"  // TODO: specify Core or SQL
+    val testName = "SparkBenchmark" // TODO: specify Core or SQL
     val sconf = new SparkConf()
-      .setAppName(testName)
+        .setAppName(testName)
     val master = if (args.contains("--master")) {
-      args(args.indexOf("--master")+1)
+      args(args.indexOf("--master") + 1)
     } else if (sconf.contains("spark.master")) {
       sconf.get("spark.master")
     } else if (System.getenv().containsKey("MASTER")) {
@@ -45,9 +48,35 @@ var sqlContext: SQLContext = _
     tools.nsc.io.File("/tmp/MASTER.txt").writeAll(msg)
 
     sc = new SparkContext(sconf)
-    sc.setLocalProperty("spark.akka.askTimeout","180")
-    sc.setLocalProperty("spark.driver.maxResultSize","2GB")
+    sc.setLocalProperty("spark.akka.askTimeout", "180")
+    sc.setLocalProperty("spark.driver.maxResultSize", "2GB")
     sqlContext = new SQLContext(sc)
+  }
+
+    def toIntList(cval: Option[_], default: Seq[Int]): Seq[Int] = {
+      import collection.JavaConverters._
+      if (cval.isEmpty) {
+        default
+      } else cval.get match {
+
+        case ints: java.util.ArrayList[_] => ints.asScala.toSeq.asInstanceOf[Seq[Int]]
+        case _ => throw new IllegalArgumentException(s"Unexpected type in toIntList ${cval.get.getClass.getName}")
+      }
+    }
+    def toBoolList(cval: Option[_], default: Seq[Boolean]): Seq[Boolean] = {
+      import collection.JavaConverters._
+      if (cval.isEmpty) {
+        default
+      } else cval.get match {
+
+        case bools: java.util.ArrayList[_] => bools.asScala.toSeq.asInstanceOf[Seq[Boolean]]
+        case _ => throw new IllegalArgumentException(s"Unexpected type in toIntList ${cval.get.getClass.getName}")
+      }
+    }
+    def toLong(cval: Option[Long], default: Long) = cval.getOrElse(default)
+
+  def readConfig(ymlFile: String) = {
+    new YamlConfiguration(ymlFile)
   }
 
   def getArg(name: String, default: String) = cmdlineArgs.contains(name)

@@ -16,77 +16,10 @@
  */
 package com.blazedb.sparkperf
 
-import java.text.SimpleDateFormat
-import java.util.Date
-
 import com.blazedb.sparkperf.YsSparkTypes._
-import com.blazedb.sparkperf.util.PerfLogger._
-import com.blazedb.sparkperf.util.{PerfLogger, TimedResult}
+import com.blazedb.sparkperf.util.TimedResult
 import org.apache.spark.SparkContext
 
-import scala.collection.mutable
-
-case class TestResult(testName: String, resultName: String,
-  optCount: Option[Int] = None, optResult: Option[Any] = None, stdOut: Option[String] = None,
-  stdErr: Option[String] = None) {
-  override def toString() = {
-    s"$resultName: count=${optCount.getOrElse("Zero")}"
-  }
-}
-
-abstract class TestBattery(name: String, outdir: String) {
-  def setUp(): Unit = {}
-
-  def runBattery(): (Boolean, Seq[TestResult])
-
-  def tearDown(): Unit = {}
-}
-
-case class CoreTestConfig(nRecords: Seq[Int], nPartitions: Seq[Int], firstPartitionSkew: Seq[Int],
-  minVal: Long, maxVal: Long, useIgnite: Seq[Boolean])
-
-case class TestMatrixSpec(name: String, version: String, genDataParams: GenDataParams)
-
-object CoreTestMatrix {
-  val A = Array
-
-  val defaultTestConfig = new CoreTestConfig(
-      A(1000), // 1Meg records
-      A(20) ,
-      A(1),
-      0L,
-      10000L,
-      A(true, false)
-  )
-  def runMatrix(sc: SparkContext, testDims: CoreTestConfig) = {
-    val passArr = mutable.ArrayBuffer[Boolean]()
-    val resArr = mutable.ArrayBuffer[TestResult]()
-    val dtf = new SimpleDateFormat("MMdd-hhmmss").format(new Date)
-    for (useIgnite <- testDims.useIgnite;
-         nRecs <- testDims.nRecords;
-         nPartitions <- testDims.nPartitions;
-         skew <- testDims.firstPartitionSkew
-         ) {
-
-      val rawName = "CoreSmoke"
-      val tname = s"$dtf/$rawName"
-      val igniteOrNative = if (useIgnite) "ignite" else "native"
-      val name = s"$tname ${nRecs}recs ${nPartitions}parts ${skew}skew ${igniteOrNative}"
-      val dir = name.replace(" ", "/")
-      val mat = TestMatrixSpec("core-smoke", "1.0", GenDataParams(nRecs, nPartitions, Some(testDims.minVal),
-        Some(testDims.maxVal), Some(skew)))
-      val dgen = new SingleSkewDataGenerator(sc, mat.genDataParams)
-      val rdd = dgen.genData()
-      val battery = new CoreBattery(sc, name, dir, rdd)
-      val (pass, tresults) = battery.runBattery()
-      val counts = tresults.map{t => t.optCount.getOrElse(-1)}
-      trace(rawName,s"Finished test $name with resultCounts=${counts.mkString(",")}")
-      passArr += pass
-      resArr ++= tresults
-    }
-    (passArr.forall(identity), resArr)
-  }
-}
 
 class CoreBattery(sc: SparkContext, testName: String, outputDir: String,
   inputRdd: InputRDD) extends TestBattery("CoreBattery", s"$outputDir/$testName") {
