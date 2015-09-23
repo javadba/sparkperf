@@ -1,0 +1,21 @@
+cpu.nLoops.thousands:
+ - 1000
+ - 10000
+ - 25000
+# - 50000
+#- 1000000
+cpu.nCpus:
+ #- 4
+ - 8
+cpu.mem.mb:
+ - 128
+# - 1024
+cpu.nRecords.thousands:
+  - 1000
+#  - 100
+#  - 1000
+#  - 10000
+#  - 100000
+#cpu.nRecords.thousands: 100000
+cpu.nPartitions:
+  - 32

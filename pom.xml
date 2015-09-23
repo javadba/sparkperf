@@ -131,7 +131,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.blazedb.sparkperf.CoreRDDPerfTest</mainClass>
+                            <mainClass>com.blazedb.sparkperf.CoreRDDTest</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

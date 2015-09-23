@@ -14,70 +14,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.blazedb.sparkperf
 
 import com.blazedb.sparkperf.YsSparkTypes._
 import com.blazedb.sparkperf.util.TimedResult
-import org.apache.spark.SparkContext
 
+abstract class TestBattery(name: String, outdir: String) {
+  def setUp(): Unit = {}
 
-class CoreBattery(sc: SparkContext, testName: String, outputDir: String,
-  inputRdd: InputRDD) extends TestBattery("CoreBattery", s"$outputDir/$testName") {
-  assert(inputRdd != null, "Hey null RDD's are not cool")
+  def runBattery(): (Boolean, Seq[TestResult])
 
-  override def runBattery() = {
-    val xformRdds = Seq(
-      (s"$testName BasicMap", inputRdd.map { case (k, v) =>
-        (k, s"[${k}]:$v")
-      }),
-      (s"$testName Filter", inputRdd.filter { case (k, v) =>
-        k % 3 != 0
-      }),
-      (s"$testName MapPartitions", {
-        val sideData = Range(0, 100000)
-        val bcSideData = sc.broadcast(sideData)
-        val irdd = inputRdd.mapPartitions { iter =>
-          iter.map { case (k, v) =>
-            val localData = bcSideData.value
-            (k, 1000.0 + v)
-          }
-        };
-        irdd
-      }))
-    val actions = Seq(Count, CountByKey)
-    val res = for ((name, rdd) <- xformRdds) yield {
-      runXformTests(name, rdd, actions)
+  def tearDown(): Unit = {}
+
+  def runLoopTests(name: String, rdd: GroupedRDD, nLoops: Int, cached: Boolean,
+                   actions: Seq[Action]): Seq[TestResult] = {
+    val results = for (loop <- 0 until nLoops;
+                       action <- actions) yield {
+      val tname = s"$name $action Loop$loop"
+      var tres: TestResult = null
+      TimedResult(tname) {
+        if (loop == 0 && cached) {
+          rdd.cache
+        }
+        val result = action match {
+          case Collect => rdd.collect
+          case Count => rdd.count
+          case CollectByKey => rdd.collectAsMap
+          case CountByKey => rdd.countByKey
+          case _ => throw new IllegalArgumentException(s"Unrecognized action $action")
+        }
+        TestResult(tname, tname, Some(getSize(result)))
+      }
     }
-    val aggRdds = Seq(
-      (s"$testName GroupByKey", inputRdd.groupByKey)
-    )
-    val aggActions = Seq(Count, CountByKey)
-    val ares = for ((name, rdd) <- aggRdds) yield {
-      runAggregationTests(name, rdd, aggActions)
-    }
-    val countRdds = Seq(
-      (s"$testName AggregateByKey", inputRdd.aggregateByKey(0L)((k, v) => k * v.length, (k, v) => k + v))
-    )
-    val countActions = Seq(Count, CountByKey)
-    val cres = for ((name, rdd) <- countRdds) yield {
-      runCountTests(name, rdd, countActions)
-    }
-    // TODO: determine a pass/fail instead of returning true
-    (true, (res ++ ares ++ cres).flatten)
+    rdd.unpersist(true)
+    results
   }
 
-  def getSize(x: Any) = {
-    import collection.mutable
-    x match {
-      case x: Number => x.intValue
-      case arr: Array[_] => arr.length
-      case m: mutable.Map[_, _] => m.size
-      case m: Map[_, _] => m.size
-      case _ => throw new IllegalArgumentException(s"What is our type?? ${x.getClass.getName}")
-    }
-  }
-
-  def runXformTests(name: String, rdd: InputRDD, actions: Seq[Action]): Seq[TestResult] = {
+  def runXformTests(name: String, rdd: XformRDD, actions: Seq[Action]): Seq[TestResult] = {
     val results = for (action <- actions) yield {
       val tname = s"$name $action"
       var tres: TestResult = null
@@ -95,11 +69,11 @@ class CoreBattery(sc: SparkContext, testName: String, outputDir: String,
     results
   }
 
-  def runAggregationTests(name: String, rdd: AggRDD, actions: Seq[Action]): Seq[TestResult] = {
+  def runAggregationTests(name: String, rdd: GroupedRDD, actions: Seq[Action]): Seq[TestResult] = {
     val results = for (action <- actions) yield {
       val tname = s"$name $action"
       var tres: TestResult = null
-      TimedResult(tname){
+      TimedResult(tname) {
         val result = action match {
           case Collect => rdd.collect
           case Count => rdd.count
@@ -130,5 +104,17 @@ class CoreBattery(sc: SparkContext, testName: String, outputDir: String,
       }
     }
     results
+  }
+
+
+  def getSize(x: Any) = {
+    import collection.mutable
+    x match {
+      case x: Number => x.intValue
+      case arr: Array[_] => arr.length
+      case m: mutable.Map[_, _] => m.size
+      case m: Map[_, _] => m.size
+      case _ => throw new IllegalArgumentException(s"What is our type?? ${x.getClass.getName}")
+    }
   }
 }

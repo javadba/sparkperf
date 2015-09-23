@@ -25,7 +25,7 @@ object PerfLogger  {
 
   import collection.mutable
   val DATE_FMT = new SimpleDateFormat("<HH:mm:ss>")
-  var LogsDir = "/tmp/sparkperf-logs"
+  var LogsDir = s"${System.getProperty("user.home")}/sparkperf"
   val lfile= new java.io.File(LogsDir)
   if (!lfile.exists) {
     lfile.mkdirs

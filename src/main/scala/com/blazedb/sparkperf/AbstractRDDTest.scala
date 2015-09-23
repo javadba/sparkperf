@@ -20,7 +20,7 @@ import org.apache.spark.sql.SQLContext
 
 import scala.reflect.runtime.universe._
 
-abstract class AbstractRDDPerfTest[RddK, RddV](cmdlineArgs: Array[String])
+abstract class AbstractRDDTest[RddK, RddV](cmdlineArgs: Array[String])
                                               (implicit rddK: TypeTag[RddK], rddV: TypeTag[RddV]) extends java.io.Serializable {
 
   var sc: SparkContext = _

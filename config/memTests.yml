@@ -1,0 +1,20 @@
+mem.rowlen:
+  - 20
+  - 1000
+mem.mb:
+# - 128
+ - 1024
+mem.nRecords.thousands:
+  - 1000
+#  - 100
+#  - 1000
+  - 10000
+#  - 100000
+mem.nPartitions:
+  - 32
+mem.nLoops:
+#  - 1
+  - 2
+mem.cached:
+  - true
+#  - false

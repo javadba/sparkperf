@@ -32,7 +32,7 @@ object YsSparkTypes {
   type InputRDD = RDD[RddTuple]
   type InputDataFrame = DataFrame
   type XformRDD = RDD[RddTuple]
-  type AggRDD = RDD[(RddKey, Iterable[RddVal])]
+  type GroupedRDD = RDD[(RddKey, Iterable[RddVal])]
   type CountRDD = RDD[(RddKey, Long)]
 
   sealed abstract class Action(name: String)
@@ -57,7 +57,7 @@ object YsSparkTypes {
 
 
 case class GenDataParams(nRecords: Int, nPartitions: Int, optMin: Option[Long] = None, optMax: Option[Long] = None,
-                         optSkewFactor: Option[Int] = Some(1)) extends Serializable
+                         optSkewFactor: Option[Int] = Some(1), optRowlen: Option[Int] = None) extends Serializable
 
 abstract class DataGenerator(dataParams: GenDataParams, optRddIn: Option[InputRDD]) extends Serializable {
   var optData = optRddIn
@@ -101,6 +101,7 @@ class SingleSkewDataGenerator(sc: SparkContext, dataParams: GenDataParams)
       val words = DataGeneratorUtils.readWords
       println(s"len(words) is ${words.length}")
       val nWords = words.size
+      val optRowlen = dataParams.optRowlen
     }
     val bcData = sc.broadcast(dataToBc)
     val rddSeq = sc.parallelize((0 until dataParams.nPartitions).toSeq, dataParams.nPartitions)
@@ -121,15 +122,23 @@ class SingleSkewDataGenerator(sc: SparkContext, dataParams: GenDataParams)
         }
       }
       val rnd = new java.util.Random
+      val locData = bcData.value
       val iterout = iter.map { ix =>
-        val locData = bcData.value
         val (nrecs, (lbound, ubound)) = locData.nrecsAndBounds(partx)
         assert(nrecs > 0, s"nrecs is not positive $nrecs")
         assert(ubound > lbound, s"ubound $ubound < lbound $lbound")
         val mlongs = longs(nrecs, lbound, ubound)
         val out = (0 until nrecs).foldLeft(mutable.ArrayBuffer[RddTuple]()) { case (m, n) =>
           val windex = rnd.nextInt(locData.nWords)
-          m += Tuple2(mlongs(n), locData.words(windex))
+          val word = locData.words(windex)
+          if (word == null) throw new IllegalStateException("could not find word from dictionary")
+          if (word.length == 0) throw new IllegalStateException("Dictionary word length is 0")
+          val repeatWord = if (locData.optRowlen.isDefined) {
+            word * (locData.optRowlen.get / word.length)
+          } else {
+            word
+          }
+          m += Tuple2(mlongs(n), repeatWord)
         }
         out
       }
@@ -150,7 +159,7 @@ object DataGeneratorUtils {
       case _ => c
     }
     }.toString
-    val words = rmtext.split(" ")
+    val words = rmtext.split(" ").filter(_.length > 0)
     words
   }
 
